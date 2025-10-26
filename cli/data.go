@@ -65,13 +65,18 @@ func (c *interpreterControl) HasBreakpoint(pos uint16) bool {
 	return slices.Contains(c.breakpoints, pos)
 }
 
-func (c *interpreterControl) DelteBreakpoint(pos uint16) {
+func (c *interpreterControl) DeleteBreakpoint(pos uint16) {
 	del := func (e uint16) bool {
 		return e == pos
 	}
 
 	c.breakpoints = slices.DeleteFunc(c.breakpoints, del)
 }
+
+func (c* interpreterControl) GetBreakpoints() []uint16 {
+	return c.breakpoints
+}
+
 
 func (cfg *interpreterConfig) SetMemoryLimits(l, h uint16) {
 	cfg.memoryLimitL = l

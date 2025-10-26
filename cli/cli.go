@@ -6,8 +6,6 @@ import (
     "bufio"
     "os"
 
-    "text/tabwriter"
-
     "github.com/Tinch334/Computer-one-v2/co"
     "github.com/fatih/color"
 )
@@ -135,17 +133,7 @@ func processInput(reader *bufio.Reader, ctrl *interpreterControl, cfg *interpret
     case BREAKPOINT:
         fallthrough
     case BREAKPOINT_SHORT:
-        if len(arguments) == 0 {
-            printErrorMsg("breakpoint")
-        }
-
-        switch arguments[0] {
-        case BREAKPOINT_SET:
-            /* code */
-        default:
-            printErrorMsg("breakpoint")
-            return
-        }
+        breakpointHandler(ctrl, cfg, arguments)
 
     case EXIT:
         fallthrough
@@ -160,69 +148,13 @@ func processInput(reader *bufio.Reader, ctrl *interpreterControl, cfg *interpret
     case CONFIGURE:
         fallthrough
     case CONFIGURE_SHORT:
-        printHelp()
+        
 
     default:
         fmt.Println("Unknown command, use \"h\" for help")
         return
     }
 }
-
-func printHelp() {
-    //Use tab-writer for easy alignment.
-    tw := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
-
-    fmt.Fprintln(tw, "Available commands:\n")
-
-    type cmd struct {
-        name     string
-        short    string
-        desc     string
-        options []string
-    }
-
-    cmds := []cmd{
-        {name: STEP, short: STEP_SHORT, desc: "Perform one execution step"},
-        {name: CONTINUE, short: CONTINUE_SHORT, desc: "Continue execution until a breakpoint or program end"},
-        {
-            name:  BREAKPOINT,
-            short: BREAKPOINT_SHORT,
-            desc:  "Breakpoint handler, options:",
-            options: []string{
-                fmt.Sprintf("%s <line>\tSet breakpoint at <line>", BREAKPOINT_SET),
-                fmt.Sprintf("%s\tList all breakpoints", BREAKPOINT_LIST),
-                fmt.Sprintf("%s <line>\tDelete the breakpoint at <line>, if it exists", BREAKPOINT_DELETE),
-            },
-        },
-        {name: EXIT, short: EXIT_SHORT, desc: "Exit interpreter"},
-        {name: HELP, short: HELP_SHORT, desc: "Display this help message"},
-        {
-            name: CONFIGURE,
-            short: CONFIGURE_SHORT,
-            desc: "Configure the interpreter",
-            options: []string{
-                fmt.Sprintf("%s <lower> <upper>\tSets the bounds determining which memory cells are printed", CONFIGURE_MEMORY_LIMITS),
-            },
-        },
-    }
-
-    for _, c := range cmds {
-        fmt.Fprintf(tw, "%s\t- %s\t| %s\n", c.name, c.short, c.desc)
-        //Check if there are any options.
-        if len(c.options) > 0 {
-            for _, ex := range c.options {
-                fmt.Fprintf(tw, "\t\t\t%s\n", ex)
-            }
-        }
-    }
-
-    _ = tw.Flush()
-}
-
-func printErrorMsg(functionName string) {
-    fmt.Printf("Invalid usage for \"%s\", see help\n", functionName)
-}
-
 
 /*
     DISPLAY FUNCTIONS
