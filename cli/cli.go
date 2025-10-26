@@ -51,13 +51,62 @@ func RunCli() {
 
         highlightPC: true,
         highlightPCColour: color.New(color.FgBlue),
+
+        exitOnError: false,
     }
 
-    run(reader, &control, &config)
+    run(ci, reader, &control, &config)
 }
 
-func run(reader *bufio.Reader, ctrl *interpreterControl, cfg *interpreterConfig) {
-    processInput(reader, ctrl, cfg)
+func run(ci *co.ComputerInfo, reader *bufio.Reader, ctrl *interpreterControl, cfg *interpreterConfig) {
+    printNext := true
+
+    //Runs the interpreting loop as long as the program runs.
+    for ctrl.running {
+        //Print info.
+        if printNext {
+            printRegs(ci)
+            printMemory(ci, cfg)
+
+            printNext = false
+        }
+
+        ctrl.step = false
+
+        //Check if we should continue or check for a step.
+        if ctrl.cont {
+            //Step the program until a breakpoint is reached
+            if ctrl.HasBreakpoint(ci.GetRegisters().PC) {
+                ctrl.cont = false
+            } else {
+                ctrl.step = true
+            }
+            
+        } else {
+            processInput(reader, ctrl, cfg)
+        }
+
+        //Step program.
+        if ctrl.step {
+            err, run := ci.Step()
+            if !run {
+                ctrl.running = false
+                fmt.Printf("Program halted\n")
+            }
+
+            if err != nil {
+                if cfg.exitOnError {
+                    ctrl.running = false
+                } else {
+                    fmt.Printf("An error occurred during execution: %s\n", err)
+                }
+            }
+
+            printNext = true
+        }
+
+        fmt.Printf("\n")
+    }
 }
 
 func processInput(reader *bufio.Reader, ctrl *interpreterControl, cfg *interpreterConfig) {
@@ -101,10 +150,16 @@ func processInput(reader *bufio.Reader, ctrl *interpreterControl, cfg *interpret
     case EXIT:
         fallthrough
     case EXIT_SHORT:
+        ctrl.running = false
 
     case HELP:
         fallthrough
     case HELP_SHORT:
+        printHelp()
+
+    case CONFIGURE:
+        fallthrough
+    case CONFIGURE_SHORT:
         printHelp()
 
     default:
@@ -141,6 +196,14 @@ func printHelp() {
         },
         {name: EXIT, short: EXIT_SHORT, desc: "Exit interpreter"},
         {name: HELP, short: HELP_SHORT, desc: "Display this help message"},
+        {
+            name: CONFIGURE,
+            short: CONFIGURE_SHORT,
+            desc: "Configure the interpreter",
+            options: []string{
+                fmt.Sprintf("%s <lower> <upper>\tSets the bounds determining which memory cells are printed", CONFIGURE_MEMORY_LIMITS),
+            },
+        },
     }
 
     for _, c := range cmds {
@@ -158,4 +221,61 @@ func printHelp() {
 
 func printErrorMsg(functionName string) {
     fmt.Printf("Invalid usage for \"%s\", see help\n", functionName)
+}
+
+
+/*
+    DISPLAY FUNCTIONS
+*/
+//Returns a "1" if the given boolean is true, "0" otherwise.
+func btoi(b bool) string {
+    if b {
+        return "1"
+    }
+    return "0"
+}
+
+//Prints all registers.
+func printRegs(ci *co.ComputerInfo) {
+    regs := ci.GetRegisters()
+    flags := ci.GetFlags()
+    flagsStr := btoi(flags.N) + btoi(flags.P) + btoi(flags.Z)
+
+    fmt.Printf("PC: 0x%04x | NPZ: %s | R0: 0x%04x R1: 0x%04x R2: 0x%04x R3:0x%04x R4:0x%04x R5:0x%04x RR: 0x%04x\n",
+        regs.PC, flagsStr, regs.R0, regs.R1, regs.R2, regs.R3, regs.R4, regs.R5, regs.RR)
+}
+
+//Prints memory contents.
+func printMemory(ci *co.ComputerInfo, cfg *interpreterConfig) {
+    start := cfg.memoryLimitL
+    end := cfg.memoryLimitH
+
+    pc := int(ci.GetRegisters().PC)
+
+    valuesPerRow := 8
+    const hexAddrWidth = 4
+
+    //Get appropriate memory cells to print.
+    _, mem := ci.GetMemory(start, end)
+
+    for i, elem := range mem {
+        //Print memory cell number along with spacing.
+        if (i % valuesPerRow) == 0 {
+            if i != 0 {
+                fmt.Printf("\n")
+            }
+            fmt.Printf("0x%0*x : ", hexAddrWidth, (start + uint16(i)))
+        }
+        //Print element.
+        if i + int(start) == pc {
+            cfg.highlightPCColour.Printf("0x%04x", elem)
+        } else {
+            fmt.Printf("0x%04x", elem)
+        }
+
+        //Space between cells.
+        fmt.Printf("  ")
+    }
+
+    fmt.Printf("\n")
 }

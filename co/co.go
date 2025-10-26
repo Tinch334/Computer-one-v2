@@ -204,11 +204,11 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		f := ci.flags
 
 		//Check jump flags.
-		if (getBit(word, 10) && f.N) {
+		if (getBit(word, 2) && f.N) {
 			ci.regs.PC = operand
-		} else if (getBit(word, 9) && f.P) {
+		} else if (getBit(word, 1) && f.P) {
 			ci.regs.PC = operand
-		} else if (getBit(word, 8) && f.Z) {
+		} else if (getBit(word, 0) && f.Z) {
 			ci.regs.PC = operand
 		}
 

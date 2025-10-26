@@ -8,13 +8,6 @@ import (
 )
 
 
-type interpreterConfig struct {
-	memoryLimitL, memoryLimitH uint16
-
-	highlightPC bool
-	highlightPCColour *color.Color
-}
-
 type interpreterControl struct {
 	running bool
 
@@ -23,6 +16,16 @@ type interpreterControl struct {
 	step bool
 	cont bool
 }
+
+type interpreterConfig struct {
+	memoryLimitL, memoryLimitH uint16
+
+	highlightPC bool
+	highlightPCColour *color.Color
+
+	exitOnError bool
+}
+
 
 const (
 	STEP = "step"
@@ -43,11 +46,16 @@ const (
 
 	HELP = "help"
 	HELP_SHORT = "h"
+
+	CONFIGURE = "configure"
+	CONFIGURE_SHORT = "cfg"
+
+	CONFIGURE_MEMORY_LIMITS = "ml"
 )
 
 
 func (c *interpreterControl) AddBreakpoint(pos uint16) {
-	// avoid duplicate breakpoints
+	//Avoid duplicate breakpoints.
 	if !slices.Contains(c.breakpoints, pos) {
 		c.breakpoints = append(c.breakpoints, pos)
 	}
@@ -55,6 +63,14 @@ func (c *interpreterControl) AddBreakpoint(pos uint16) {
 
 func (c *interpreterControl) HasBreakpoint(pos uint16) bool {
 	return slices.Contains(c.breakpoints, pos)
+}
+
+func (c *interpreterControl) DelteBreakpoint(pos uint16) {
+	del := func (e uint16) bool {
+		return e == pos
+	}
+
+	c.breakpoints = slices.DeleteFunc(c.breakpoints, del)
 }
 
 func (cfg *interpreterConfig) SetMemoryLimits(l, h uint16) {
