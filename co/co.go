@@ -29,6 +29,10 @@ func (ci *ComputerInfo) getRegisterPtr(arg uint16) *uint16 {
 		retAddr = &(ci.regs.R4)
 	case 5:
 		retAddr = &(ci.regs.R5)
+	case 6:
+		retAddr = &(ci.regs.R6)
+	case 7:
+		retAddr = &(ci.regs.R7)
 	default: //Avoid returning an error.
 		retAddr = &(ci.regs.R0)
 	}
@@ -57,7 +61,7 @@ func (ci *ComputerInfo) Step() (error, bool) {
 	ins := getInstruction(word)
 	firstRegPtr := ci.getRegisterPtr(getFirstRegister(word))
 
-	
+	ci.regs.PC = ci.nextPC()
 
 	switch(ins) {
 	//Load/store.

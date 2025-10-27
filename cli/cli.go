@@ -13,11 +13,9 @@ import (
 func RunCli() {
     ci := co.NewComputerInfo()
 
-    var memLoad []uint16
-    memLoad = append(
-        memLoad,
-        0b0000100000000011, //LDA r2 3
-        0b0010000000000010, //LDR r0 r2
+    memLoad := []uint16{
+        0b0000010000000011, //LD r4 <- mem[3]
+        0b0000001010000100, //LD r2 <- mem[r2]
         0b1110000000000000, //HLT
         0b0000000000001110,
         0b0000000000000000,
@@ -31,7 +29,7 @@ func RunCli() {
         0b0000000000000000,
         0b0000000000000000,
         0b0000000000000011,
-    )
+    }
 
     ci.SetMemory(0, memLoad)
 
@@ -115,6 +113,10 @@ func processInput(reader *bufio.Reader, ctrl *interpreterControl, cfg *interpret
         fmt.Println("Error reading input:", err)
         return
     }
+
+    if len(line) == 0 {
+        return
+    }
     
     contents := strings.Fields(line)
     command, arguments := contents[0], contents[1:]
@@ -173,8 +175,11 @@ func printRegs(ci *co.ComputerInfo) {
     flags := ci.GetFlags()
     flagsStr := btoi(flags.N) + btoi(flags.P) + btoi(flags.Z)
 
-    fmt.Printf("PC: 0x%04x | NPZ: %s | R0: 0x%04x R1: 0x%04x R2: 0x%04x R3:0x%04x R4:0x%04x R5:0x%04x RR: 0x%04x\n",
-        regs.PC, flagsStr, regs.R0, regs.R1, regs.R2, regs.R3, regs.R4, regs.R5, regs.RR)
+    fmt.Printf("PC: 0x%04x | NPZ: %s | RR: 0x%04x\n",
+        regs.PC, flagsStr, regs.RR)
+
+    fmt.Printf("R0: 0x%04x R1: 0x%04x R2: 0x%04x R3:0x%04x R4:0x%04x R5:0x%04x R6:0x%04x R7:0x%04x\n",
+        regs.R0, regs.R1, regs.R2, regs.R3, regs.R4, regs.R5, regs.R6, regs.R7)
 }
 
 //Prints memory contents, note that "tabwriter" cannot be used because ANSI escape codes are used for colour, and they get counted

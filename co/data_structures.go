@@ -10,7 +10,7 @@ const MemorySize = 1024 //In words.
 
 //The registers and flags are a separate structure to be able to return them.
 type Registers struct {
-	PC, R0, R1, R2, R3, R4, R5, RR uint16
+	PC, R0, R1, R2, R3, R4, R5, R6, R7, RR uint16
 }
 
 type Flags struct {
@@ -115,7 +115,7 @@ func (ci *ComputerInfo) SetMemory(start int, mem []uint16) error {
 //Takes an instruction, if it's in immediate mode returns the value and "false", otherwise "true" and a pointer to the appropriate register.
 func (ci *ComputerInfo) getRegisterOrImmediate(ins uint16) (bool, *uint16, uint16) {
 	//Check immediate flag.
-	if getBit(ins, 11) {
+	if getBit(ins, 7) {
 		regNum := getSecondRegister(ins)
 		reg := ci.getRegisterPtr(regNum)
 
@@ -128,6 +128,7 @@ func (ci *ComputerInfo) getRegisterOrImmediate(ins uint16) (bool, *uint16, uint1
 	}
 
 	imm := getImmediate(ins)
+
 	return false, nil, imm
 }
 
@@ -146,11 +147,11 @@ func (ci *ComputerInfo) nextPC() uint16 {
 	INSTRUCTION INFORMATION
 */
 func getInstruction(ins uint16) uint16 {
-	return (ins & 0xF000) >> 12
+	return (ins & 0xF800) >> 12
 }
 
 func getFirstRegister(ins uint16) uint16 {
-	return (ins & 0x0D00) >> 8
+	return (ins & 0x0700) >> 8
 }
 
 func getSecondRegister(ins uint16) uint16 {
