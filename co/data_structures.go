@@ -108,3 +108,59 @@ func (ci *ComputerInfo) SetMemory(start int, mem []uint16) error {
 
 	return nil
 }
+
+/*
+	REGISTER INSTRUCTIONS
+*/
+//Takes an instruction, if it's in immediate mode returns the value and "false", otherwise "true" and a pointer to the appropriate register.
+func (ci *ComputerInfo) getRegisterOrImmediate(ins uint16) (bool, *uint16, uint16) {
+	//Check immediate flag.
+	if getBit(ins, 11) {
+		regNum := getSecondRegister(ins)
+		reg := ci.getRegisterPtr(regNum)
+
+		return true, reg, 0
+	}
+
+	//Check if double mode is enabled, if so load data from next memory cell.
+	if getLowerByte(ins) == 0xFF {
+		return false, nil, ci.memory[ci.nextPC()]
+	}
+
+	imm := getImmediate(ins)
+	return false, nil, imm
+}
+
+//Safely returns the next value for the PC.
+func (ci *ComputerInfo) nextPC() uint16 {
+	nPC := ci.regs.PC + 1
+	//Check for program counter exceeding memory size.
+	if nPC >= MemorySize {
+		return 0
+	}
+
+	return nPC
+}
+
+/*
+	INSTRUCTION INFORMATION
+*/
+func getInstruction(ins uint16) uint16 {
+	return (ins & 0xF000) >> 12
+}
+
+func getFirstRegister(ins uint16) uint16 {
+	return (ins & 0x0D00) >> 8
+}
+
+func getSecondRegister(ins uint16) uint16 {
+	return ins & 0x0003
+}
+
+func getImmediate(ins uint16) uint16 {
+	return ins & 0x007F
+}
+
+func getLowerByte(ins uint16) uint16 {
+	return ins & 0x00FF
+}

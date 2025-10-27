@@ -148,7 +148,7 @@ func processInput(reader *bufio.Reader, ctrl *interpreterControl, cfg *interpret
     case CONFIGURE:
         fallthrough
     case CONFIGURE_SHORT:
-        
+        configurationHandler(cfg, arguments)
 
     default:
         fmt.Println("Unknown command, use \"h\" for help")
@@ -177,7 +177,8 @@ func printRegs(ci *co.ComputerInfo) {
         regs.PC, flagsStr, regs.R0, regs.R1, regs.R2, regs.R3, regs.R4, regs.R5, regs.RR)
 }
 
-//Prints memory contents.
+//Prints memory contents, note that "tabwriter" cannot be used because ANSI escape codes are used for colour, and they get counted
+//by the package.
 func printMemory(ci *co.ComputerInfo, cfg *interpreterConfig) {
     start := cfg.memoryLimitL
     end := cfg.memoryLimitH
@@ -196,6 +197,7 @@ func printMemory(ci *co.ComputerInfo, cfg *interpreterConfig) {
             if i != 0 {
                 fmt.Printf("\n")
             }
+
             fmt.Printf("0x%0*x : ", hexAddrWidth, (start + uint16(i)))
         }
         //Print element.

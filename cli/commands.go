@@ -15,10 +15,15 @@ import (
 
 
 func breakpointHandler(ctrl *interpreterControl, cfg *interpreterConfig, args []string) {
+    if len(args) == 0 {
+        printErrorMsg(BREAKPOINT)
+        return
+    }
+
     switch args[0] {
     case BREAKPOINT_SET:
     	if len(args) != 2 {
-            printErrorMsg("breakpoint")
+            printErrorMsg(BREAKPOINT)
             return
         }
 
@@ -32,6 +37,11 @@ func breakpointHandler(ctrl *interpreterControl, cfg *interpreterConfig, args []
         fmt.Printf("Breakpoint added at address 0x%X", addr)
 
     case BREAKPOINT_LIST:
+        if len(args) != 1 {
+            printErrorMsg(BREAKPOINT)
+            return
+        }
+
     	br := ctrl.GetBreakpoints()
 
     	if len(br) == 0 {
@@ -41,6 +51,11 @@ func breakpointHandler(ctrl *interpreterControl, cfg *interpreterConfig, args []
     	}
 
     case BREAKPOINT_DELETE:
+        if len(args) != 2 {
+            printErrorMsg(BREAKPOINT)
+            return
+        }
+
     	//Get line number and check for errors.
         err, addr := convValidateMemoryAddr(args[1])
         if err != nil {
@@ -55,13 +70,50 @@ func breakpointHandler(ctrl *interpreterControl, cfg *interpreterConfig, args []
         }
 
     default:
-        printErrorMsg("breakpoint")
+        printErrorMsg(BREAKPOINT)
+    }
+}
+
+func configurationHandler(cfg *interpreterConfig, args []string) {
+    if len(args) == 0 {
+        printErrorMsg(CONFIGURE)
+        return
+    }
+
+    switch args[0] {
+    case CONFIGURE_MEMORY_LIMITS:
+        if len(args) != 3 {
+            printErrorMsg(CONFIGURE)
+            return
+        }
+
+        e1, lower := convValidateMemoryAddr(args[1])
+        e2, higher := convValidateMemoryAddr(args[2])
+
+        if (e1 != nil) || (e2 != nil) {
+            printErrorMsg(CONFIGURE)
+            return
+        }
+
+        fmt.Printf("%d - %d\n", lower, higher)
+
+        if (lower >= higher || higher >= co.MemorySize) {
+            printErrorMsg(CONFIGURE)
+            return
+        }
+
+        cfg.memoryLimitL = lower
+        cfg.memoryLimitH = higher
+
+    default:
+        printErrorMsg(CONFIGURE)
     }
 }
 
 func printHelp() {
     //Use tab-writer for easy alignment.
     tw := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
+    defer func() { _ = tw.Flush() }()
 
     fmt.Fprintln(tw, "Available commands:\n")
 
@@ -106,13 +158,10 @@ func printHelp() {
             }
         }
     }
-
-    //Ensure no elements left in buffer.
-    _ = tw.Flush()
 }
 
 func printErrorMsg(functionName string)  {
-    fmt.Fprintf(os.Stderr, "Invalid usage for \"%s\", see help", functionName)
+    fmt.Fprintf(os.Stderr, "Invalid usage for %q — see '%s' for help\n", functionName, HELP)
 }
 
 //A function that converts the given uint16 number to a string with it's hex representation.
@@ -124,25 +173,15 @@ func uint16ToHexStr() func(uint16) string {
 
 //Takes a string and if possible converts it to a uint16 number, otherwise returns an error.
 func convValidateMemoryAddr(addr string) (error, uint16) {
-	//Try base 10 conversion first.
-	num, err := strconv.ParseUint(addr, 10, 16)
+	//Using base "0" automatically detects the base based on the string.
+	num, err := strconv.ParseUint(addr, 0, 16)
     if err != nil {
-    	//If base 10 conversion failed try base 16 conversion, we force base 16 numbers to begin with "0x".
-    	if strings.HasPrefix(addr, "0x") {
-    		num, err = strconv.ParseUint(addr[2:], 16, 16)
-    	} else {
-    		printErrorMsg("breakpoint")
-    		return errors.New("Invalid memory address"), 0
-    	}
-
-    	if err != nil {
-    		printErrorMsg("breakpoint")
-    		return errors.New("Invalid memory address"), 0
-    	}
+    	fmt.Fprintf(os.Stderr, "Invalid memory address: %q", addr)
+        return errors.New("Invalid memory address"), 0
     }
 
     if num >= co.MemorySize {
-    	printErrorMsg("breakpoint")
+    	fmt.Fprintf(os.Stderr, "Memory address out of range: 0x%X (>= %d)", num, co.MemorySize)
     	return errors.New("Invalid memory address"), 0
     }
 

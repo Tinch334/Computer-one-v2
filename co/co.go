@@ -38,39 +38,6 @@ func (ci *ComputerInfo) getRegisterPtr(arg uint16) *uint16 {
 	return retAddr
 }
 
-/*
-	INSTRUCTION INFORMATION
-*/
-func GetInstruction(ins uint16) uint16 {
-	return (ins & 0xF000) >> 12
-}
-
-func GetFirstRegister(ins uint16) uint16 {
-	return (ins & 0x0700) >> 8
-}
-
-func GetSecondRegister(ins uint16) uint16 {
-	return ins & 0x0003
-}
-
-func GetImmediate(ins uint16) uint16 {
-	return ins & 0x00FF
-}
-
-//Takes an instruction, if it's in immediate mode returns the value and "false", otherwise "true" and a pointer to the appropriate register.
-func getRegisterOrImmediate(ci *ComputerInfo, ins uint16) (bool, *uint16, uint16) {
-	//Check immediate flag.
-	if getBit(ins, 11) {
-		regNum := GetSecondRegister(ins)
-		reg := ci.getRegisterPtr(regNum)
-
-		return true, reg, 0
-	}
-
-	imm := GetImmediate(ins)
-	return false, nil, imm
-}
-
 //Performs left shift the specified amount.
 func leftShift(value uint16, amount uint16) uint16 {
 	return value << amount
@@ -87,19 +54,15 @@ func rightShift(value uint16, amount uint16) uint16 {
 */
 func (ci *ComputerInfo) Step() (error, bool) {
 	word := ci.memory[int(ci.regs.PC)]
-	ins := GetInstruction(word)
-	firstRegPtr := ci.getRegisterPtr(GetFirstRegister(word))
+	ins := getInstruction(word)
+	firstRegPtr := ci.getRegisterPtr(getFirstRegister(word))
 
-	ci.regs.PC++
-	//Check for program counter exceeding memory size.
-	if ci.regs.PC >= MemorySize {
-		ci.regs.PC = 0
-	}
+	
 
 	switch(ins) {
 	//Load/store.
 	case LD:
-		b, regPtr, opr := getRegisterOrImmediate(ci, word)
+		b, regPtr, opr := ci.getRegisterOrImmediate(word)
 
 		if b {
 			if *regPtr >= MemorySize {
@@ -112,7 +75,7 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		}
 	
 	case ST:
-		b, regPtr, opr := getRegisterOrImmediate(ci, word)
+		b, regPtr, opr := ci.getRegisterOrImmediate(word)
 
 		if b {
 			if *regPtr >= MemorySize {
@@ -125,7 +88,7 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		}
 
 	case MOV:
-		b, regPtr, opr := getRegisterOrImmediate(ci, word)
+		b, regPtr, opr := ci.getRegisterOrImmediate(word)
 
 		if b {
 			*firstRegPtr = *regPtr
@@ -135,7 +98,7 @@ func (ci *ComputerInfo) Step() (error, bool) {
 	
 	//Arithmetic operations.
 	case ADD:
-		b, regPtr, opr := getRegisterOrImmediate(ci, word)
+		b, regPtr, opr := ci.getRegisterOrImmediate(word)
 
 		if b {
 			*firstRegPtr += *regPtr
@@ -144,7 +107,7 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		}
 	
 	case MUL:
-		b, regPtr, opr := getRegisterOrImmediate(ci, word)
+		b, regPtr, opr := ci.getRegisterOrImmediate(word)
 
 		if b {
 			*firstRegPtr *= *regPtr
@@ -154,7 +117,7 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		
 	//Logic operations.
 	case AND:
-		b, regPtr, opr := getRegisterOrImmediate(ci, word)
+		b, regPtr, opr := ci.getRegisterOrImmediate(word)
 
 		if b {
 			*firstRegPtr &= *regPtr
@@ -166,7 +129,7 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		*firstRegPtr = ^(*firstRegPtr)
 		
 	case OR:
-		b, regPtr, opr := getRegisterOrImmediate(ci, word)
+		b, regPtr, opr := ci.getRegisterOrImmediate(word)
 
 		if b {
 			*firstRegPtr |= *regPtr
@@ -175,7 +138,7 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		}
 
 	case SHL:
-		b, regPtr, opr := getRegisterOrImmediate(ci, word)
+		b, regPtr, opr := ci.getRegisterOrImmediate(word)
 
 		if b {
 			*firstRegPtr *= *firstRegPtr << *regPtr
@@ -184,7 +147,7 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		}
 	
 	case SHR:
-		b, regPtr, opr := getRegisterOrImmediate(ci, word)
+		b, regPtr, opr := ci.getRegisterOrImmediate(word)
 
 		if b {
 			*firstRegPtr *= *firstRegPtr >> *regPtr
@@ -194,7 +157,7 @@ func (ci *ComputerInfo) Step() (error, bool) {
 
     //Flow control.
 	case JMP:
-		b, _, operand := getRegisterOrImmediate(ci, word)
+		b, _, operand := ci.getRegisterOrImmediate(word)
 
 		//Invalid operand, do nothing.
 		if b {
@@ -213,7 +176,7 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		}
 
 	case JSR:
-		b, _, operand := getRegisterOrImmediate(ci, word)
+		b, _, operand := ci.getRegisterOrImmediate(word)
 
 		//Invalid operand, do nothing.
 		if b {
