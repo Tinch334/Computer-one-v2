@@ -10,7 +10,7 @@ const MemorySize = 1024 //In words.
 
 //The registers and flags are a separate structure to be able to return them.
 type Registers struct {
-	PC, R0, R1, R2, R3, R4, R5, R6, R7, RR uint16
+	PC, R0, R1, R2, R3, R4, R5, R6, R7 uint16
 }
 
 type Flags struct {
@@ -84,14 +84,40 @@ func (ci *ComputerInfo) GetMemory(start uint16, end uint16) (error, []uint16) {
 	returnedMemory := make([]uint16, end - start)
 
 	for i := start; i < end; i++ {
-		returnedMemory[i] = ci.memory[i + start]
+		returnedMemory[i] = ci.GetMemoryCell(i + start)
 	}
 
 	return nil, returnedMemory
 }
 
+
 /*
-	SETTING FUNCTIONS
+	MEMORY FUNCTIONS
+*/
+//Sets the memory cells in the specified interval.
+func (ci *ComputerInfo) SetMemoryBlock(start uint16, mem []uint16) error {
+	if start + uint16(len(mem)) > MemorySize {
+		return errors.New("Invalid start position and memory length")
+	}
+
+	for i, elem := range mem {
+		ci.SetMemoryCell(uint16(i) + start, elem)
+	}
+
+	return nil
+}
+
+func (ci *ComputerInfo) SetMemoryCell(addr uint16, value uint16) {
+	ci.memory[addr % MemorySize] = value
+}
+
+func (ci *ComputerInfo) GetMemoryCell(addr uint16) uint16 {
+	return ci.memory[addr % MemorySize]
+}
+
+
+/*
+	REGISTER INSTRUCTIONS
 */
 func (ci *ComputerInfo) setFlags(res uint16) {
 	s := int16(res)
@@ -101,29 +127,12 @@ func (ci *ComputerInfo) setFlags(res uint16) {
 	ci.flags.Z = s == 0
 }
 
-
-//Sets the memory cells in the specified interval.
-func (ci *ComputerInfo) SetMemory(start int, mem []uint16) error {
-	if start + len(mem) > MemorySize {
-		return errors.New("Invalid start position and memory length")
-	}
-
-	for i, elem := range mem {
-		ci.memory[i + start] = elem
-	}
-
-	return nil
-}
-
 //Sets all CPU registers.
 func (ci *ComputerInfo) SetRegisters(regs Registers, flags Flags) {
 	ci.regs = regs
 	ci.flags = flags
 }
 
-/*
-	REGISTER INSTRUCTIONS
-*/
 //Takes an instruction, if it's in immediate mode returns the value and "false", otherwise "true" and a pointer to the appropriate register.
 func (ci *ComputerInfo) getRegisterOrImmediate(ins uint16) (bool, *uint16, uint16) {
 	//Check if double mode is enabled, if so load data from next memory cell.
@@ -154,7 +163,7 @@ func (ci *ComputerInfo) addPCinc() {
 	INSTRUCTION INFORMATION
 */
 func getInstruction(ins uint16) uint16 {
-	return (ins & 0xF800) >> 12
+	return (ins & 0xF800) >> 11
 }
 
 func getFirstRegister(ins uint16) uint16 {

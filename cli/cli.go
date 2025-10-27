@@ -14,10 +14,10 @@ func RunCli() {
     ci := co.NewComputerInfo()
 
     memLoad := []uint16{
-        0b0000010011111111, //LD r4 <- mem[3]
-        0b0000000000000011,
+        0b0000010011111111, //LD r4 <- mem[PC + 1]
+        0b0000000000000011, //Double mode value
         0b0000001010000100, //LD r2 <- mem[r2]
-        0b1110000000000000, //HLT
+        0b0111000000000000, //HLT
         0b0000000000001110,
         0b0000000000000000,
         0b0000000000000000,
@@ -31,7 +31,7 @@ func RunCli() {
         0b0000000000000011,
     }
 
-    ci.SetMemory(0, memLoad)
+    ci.SetMemoryBlock(0, memLoad)
 
     reader := bufio.NewReader(os.Stdin)
 
@@ -79,7 +79,7 @@ func run(ci *co.ComputerInfo, reader *bufio.Reader, ctrl *interpreterControl, cf
             }
             
         } else {
-            processInput(reader, ctrl, cfg)
+            processInput(reader, ci, ctrl, cfg)
         }
 
         //Step program.
@@ -105,7 +105,7 @@ func run(ci *co.ComputerInfo, reader *bufio.Reader, ctrl *interpreterControl, cf
     }
 }
 
-func processInput(reader *bufio.Reader, ctrl *interpreterControl, cfg *interpreterConfig) {
+func processInput(reader *bufio.Reader, ci *co.ComputerInfo, ctrl *interpreterControl, cfg *interpreterConfig) {
     fmt.Printf(">")
     line, err := reader.ReadString('\n')
 
@@ -155,6 +155,11 @@ func processInput(reader *bufio.Reader, ctrl *interpreterControl, cfg *interpret
     case CONFIGURE_SHORT:
         configurationHandler(cfg, arguments)
 
+    case MEMORY_CONTROL:
+        fallthrough
+    case MEMORY_CONTROL_SHORT:
+        memoryControlHandler(ci, arguments)
+
     default:
         fmt.Println("Unknown command, use \"h\" for help")
         return
@@ -178,11 +183,11 @@ func printRegs(ci *co.ComputerInfo) {
     flags := ci.GetFlags()
     flagsStr := btoi(flags.N) + btoi(flags.P) + btoi(flags.Z)
 
-    fmt.Printf("PC: 0x%04x | NPZ: %s | RR: 0x%04x\n",
-        regs.PC, flagsStr, regs.RR)
+    fmt.Printf("PC: 0x%04x | NPZ: %s | R0: 0x%04x R1: 0x%04x R2: 0x%04x R3:0x%04x R4:0x%04x R5:0x%04x R6:0x%04x R7:0x%04x\n",
+        regs.PC, flagsStr, regs.R0, regs.R1, regs.R2, regs.R3, regs.R4, regs.R5, regs.R6, regs.R7)
 
-    fmt.Printf("R0: 0x%04x R1: 0x%04x R2: 0x%04x R3:0x%04x R4:0x%04x R5:0x%04x R6:0x%04x R7:0x%04x\n",
-        regs.R0, regs.R1, regs.R2, regs.R3, regs.R4, regs.R5, regs.R6, regs.R7)
+    fmt.Printf("\n",
+        )
 }
 
 //Prints memory contents, note that "tabwriter" cannot be used because ANSI escape codes are used for colour, and they get counted

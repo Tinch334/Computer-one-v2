@@ -104,8 +104,6 @@ func configurationHandler(cfg *interpreterConfig, args []string) {
             return
         }
 
-        fmt.Printf("%d - %d\n", lower, higher)
-
         if (lower >= higher || higher >= co.MemorySize) {
             printErrorMsg(CONFIGURE)
             return
@@ -116,6 +114,82 @@ func configurationHandler(cfg *interpreterConfig, args []string) {
 
     default:
         printErrorMsg(CONFIGURE)
+    }
+}
+
+func memoryControlHandler(ci *co.ComputerInfo, args []string) {
+    if len(args) == 0 {
+        printErrorMsg(MEMORY_CONTROL)
+        return
+    }
+
+    switch args[0] {
+    case MEMORY_CONTROL_PEEK:
+        fallthrough
+    case MEMORY_CONTROL_PEEK_SHORT:
+        if len(args) != 3 {
+            printErrorMsg(MEMORY_CONTROL)
+            return
+        }
+
+        //Get memory address.
+        e1, addr := convValidateMemoryAddr(args[1])
+        //Get number of values to read address.
+        e2, length := convValidateMemoryAddr(args[2])
+
+        if (e1 != nil) || (e2 != nil) {
+            printErrorMsg(CONFIGURE)
+            return
+        }
+
+        //Read list of all values, store them as string in slice.
+        valuesStr := make([]string, int(length))
+        for i := 0; i < int(length); i++ {
+            valuesStr[i] = fmt.Sprintf("0x%04X", ci.GetMemoryCell(addr + uint16(i)))
+        }
+
+        fmt.Printf("Memory values starting from 0x%04X: %s", addr, strings.Join(valuesStr, ", "))
+
+    case MEMORY_CONTROL_POKE:
+        fallthrough
+    case MEMORY_CONTROL_POKE_SHORT:
+        if len(args) <= 2 {
+            printErrorMsg(MEMORY_CONTROL)
+            return
+        }
+
+        //Get memory address.
+        err, addr := convValidateMemoryAddr(args[1])
+        if err != nil {
+            printErrorMsg(MEMORY_CONTROL)
+            return
+        }
+
+        //Read list of all values to set.
+        values := make([]uint16, len(args[2:]))
+        for i, e := range args[2:] {
+            val, parseErr := strconv.ParseUint(e, 0, 16)
+
+            if parseErr != nil {
+                fmt.Fprintf(os.Stderr, "The value '0x%04X' does not fit in 16 bits\n")
+                printErrorMsg(MEMORY_CONTROL)
+                return
+            }
+
+            values[i] = uint16(val)
+        }
+
+        setErr := ci.SetMemoryBlock(addr, values)
+        if setErr != nil {
+            printErrorMsg(MEMORY_CONTROL)
+            return
+        }
+
+        fmt.Printf("Memory values set")
+
+    default:
+        printErrorMsg(MEMORY_CONTROL)
+        return
     }
 }
 
@@ -156,6 +230,15 @@ func printHelp() {
                 fmt.Sprintf("%s <lower> <upper>\tSets the bounds determining which memory cells are printed", CONFIGURE_MEMORY_LIMITS),
             },
         },
+        {
+            name: MEMORY_CONTROL,
+            short: MEMORY_CONTROL_SHORT,
+            desc: "Allows for reading and writing values to and from memory",
+            options: []string{
+                fmt.Sprintf("%s <start> <n>\tReads <n> amount of memory values, starting from <start>", MEMORY_CONTROL_PEEK),
+                fmt.Sprintf("%s <start> <values...>\tWrites all the values passed, sequentially, starting from <start>", MEMORY_CONTROL_POKE),
+            },
+        },
     }
 
     for _, c := range cmds {
@@ -190,7 +273,7 @@ func convValidateMemoryAddr(addr string) (error, uint16) {
     }
 
     if num >= co.MemorySize {
-    	fmt.Fprintf(os.Stderr, "Memory address out of range: 0x%X (>= %d)", num, co.MemorySize)
+    	fmt.Fprintf(os.Stderr, "Memory address out of range: 0x%X (>= %d)\n", num, co.MemorySize)
     	return errors.New("Invalid memory address"), 0
     }
 

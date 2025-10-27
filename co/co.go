@@ -61,6 +61,8 @@ func (ci *ComputerInfo) Step() (error, bool) {
 	ins := getInstruction(word)
 	firstRegPtr := ci.getRegisterPtr(getFirstRegister(word))
 
+	pcModified := false
+
 	//The PC must increment by at least one every tick.
 	ci.addPCinc()
 
@@ -70,25 +72,17 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		b, regPtr, opr := ci.getRegisterOrImmediate(word)
 
 		if b {
-			if *regPtr >= MemorySize {
-				return errors.New("Invalid value for LD"), true
-			}
-
-			*firstRegPtr = ci.memory[*regPtr]
+			*firstRegPtr = ci.GetMemoryCell(*regPtr)
 		} else {
-			*firstRegPtr = ci.memory[opr]
+			*firstRegPtr = ci.GetMemoryCell(opr)
 		}
 	case ST:
 		b, regPtr, opr := ci.getRegisterOrImmediate(word)
 
 		if b {
-			if *regPtr >= MemorySize {
-				return errors.New("Invalid value for ST"), true
-			}
-
-			ci.memory[*regPtr] = *firstRegPtr
+			ci.SetMemoryCell(*regPtr, *firstRegPtr)
 		} else {
-			ci.memory[opr] = *firstRegPtr
+			ci.SetMemoryCell(opr, *firstRegPtr)
 		}
 
 	case MOV:
@@ -173,10 +167,13 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		//Check jump flags.
 		if (getBit(word, 2) && f.N) {
 			ci.regs.PC = operand
+			pcModified = true
 		} else if (getBit(word, 1) && f.P) {
 			ci.regs.PC = operand
+			pcModified = true
 		} else if (getBit(word, 0) && f.Z) {
 			ci.regs.PC = operand
+			pcModified = true
 		}
 
 	case JSR:
@@ -187,11 +184,13 @@ func (ci *ComputerInfo) Step() (error, bool) {
 			return errors.New("Invalid operand for JSR"), true
 		}
 
-		ci.regs.RR = ci.regs.PC
+		ci.regs.R7 = (ci.regs.PC + 1) % MemorySize
 		ci.regs.PC = operand
+		pcModified = true
 
 	case RET:
-		ci.regs.PC = ci.regs.RR
+		ci.regs.PC = ci.regs.R7
+		pcModified = true
 
 	case NOP:
 		
@@ -199,10 +198,13 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		return nil, false
 	}
 
-	//Increment PC and check for overflow, reset increment counter.
-	ci.regs.PC += ci.pcIncs
-	ci.regs.PC = ci.regs.PC % MemorySize
-	ci.pcIncs = 0
+	//Increment PC only if the instruction did not explicitly change it.
+	if !pcModified {
+		//Increment PC and check for overflow, reset increment counter.
+		ci.regs.PC += ci.pcIncs
+		ci.regs.PC = ci.regs.PC % MemorySize
+		ci.pcIncs = 0
+	}
 
 	return nil, true
 }
