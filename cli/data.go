@@ -40,6 +40,7 @@ const (
 	BREAKPOINT_SET = "s"
 	BREAKPOINT_LIST = "l"
 	BREAKPOINT_DELETE = "d"
+	BREAKPOINT_DELETE_ALL = "da"
 
 	EXIT = "exit"
 	EXIT_SHORT = "e"
@@ -71,6 +72,10 @@ func (c *interpreterControl) DeleteBreakpoint(pos uint16) {
 	}
 
 	c.breakpoints = slices.DeleteFunc(c.breakpoints, del)
+}
+
+func (c *interpreterControl) ClearBreakpoints() {
+	c.breakpoints = make([]uint16, 0)
 }
 
 func (c* interpreterControl) GetBreakpoints() []uint16 {

@@ -61,7 +61,8 @@ func (ci *ComputerInfo) Step() (error, bool) {
 	ins := getInstruction(word)
 	firstRegPtr := ci.getRegisterPtr(getFirstRegister(word))
 
-	ci.regs.PC = ci.nextPC()
+	//The PC must increment by at least one every tick.
+	ci.addPCinc()
 
 	switch(ins) {
 	//Load/store.
@@ -77,7 +78,6 @@ func (ci *ComputerInfo) Step() (error, bool) {
 		} else {
 			*firstRegPtr = ci.memory[opr]
 		}
-	
 	case ST:
 		b, regPtr, opr := ci.getRegisterOrImmediate(word)
 
@@ -198,6 +198,11 @@ func (ci *ComputerInfo) Step() (error, bool) {
 	case HLT:
 		return nil, false
 	}
+
+	//Increment PC and check for overflow, reset increment counter.
+	ci.regs.PC += ci.pcIncs
+	ci.regs.PC = ci.regs.PC % MemorySize
+	ci.pcIncs = 0
 
 	return nil, true
 }

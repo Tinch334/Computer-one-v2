@@ -14,11 +14,11 @@ func RunCli() {
     ci := co.NewComputerInfo()
 
     memLoad := []uint16{
-        0b0000010000000011, //LD r4 <- mem[3]
+        0b0000010011111111, //LD r4 <- mem[3]
+        0b0000000000000011,
         0b0000001010000100, //LD r2 <- mem[r2]
         0b1110000000000000, //HLT
         0b0000000000001110,
-        0b0000000000000000,
         0b0000000000000000,
         0b0000000000000000,
         0b0000000000000000,
@@ -114,7 +114,10 @@ func processInput(reader *bufio.Reader, ctrl *interpreterControl, cfg *interpret
         return
     }
 
-    if len(line) == 0 {
+    //Remove newline and check for an empty line.
+    line = strings.TrimSuffix(line, "\n")
+
+    if line == "" {
         return
     }
     

@@ -25,6 +25,9 @@ type ComputerInfo struct {
 	//Status flags.
 	flags Flags
 
+	//How many times the PC must be incremented in the next tick.
+	pcIncs uint16
+
 	//Array representing memory.
 	memory [MemorySize]uint16
 }
@@ -52,6 +55,7 @@ func NewComputerInfo() *ComputerInfo {
 	ci := ComputerInfo{
 		regs: Registers{},
 		flags: Flags{},
+		pcIncs: 0,
 		memory: [MemorySize]uint16{},
 	}
 
@@ -97,6 +101,8 @@ func (ci *ComputerInfo) setFlags(res uint16) {
 	ci.flags.Z = s == 0
 }
 
+
+//Sets the memory cells in the specified interval.
 func (ci *ComputerInfo) SetMemory(start int, mem []uint16) error {
 	if start + len(mem) > MemorySize {
 		return errors.New("Invalid start position and memory length")
@@ -109,11 +115,23 @@ func (ci *ComputerInfo) SetMemory(start int, mem []uint16) error {
 	return nil
 }
 
+//Sets all CPU registers.
+func (ci *ComputerInfo) SetRegisters(regs Registers, flags Flags) {
+	ci.regs = regs
+	ci.flags = flags
+}
+
 /*
 	REGISTER INSTRUCTIONS
 */
 //Takes an instruction, if it's in immediate mode returns the value and "false", otherwise "true" and a pointer to the appropriate register.
 func (ci *ComputerInfo) getRegisterOrImmediate(ins uint16) (bool, *uint16, uint16) {
+	//Check if double mode is enabled, if so load data from next memory cell.
+	if getLowerByte(ins) == 0xFF {
+		ci.addPCinc()
+		return false, nil, ci.memory[ci.regs.PC + 1]
+	}
+
 	//Check immediate flag.
 	if getBit(ins, 7) {
 		regNum := getSecondRegister(ins)
@@ -122,25 +140,14 @@ func (ci *ComputerInfo) getRegisterOrImmediate(ins uint16) (bool, *uint16, uint1
 		return true, reg, 0
 	}
 
-	//Check if double mode is enabled, if so load data from next memory cell.
-	if getLowerByte(ins) == 0xFF {
-		return false, nil, ci.memory[ci.nextPC()]
-	}
-
 	imm := getImmediate(ins)
 
 	return false, nil, imm
 }
 
-//Safely returns the next value for the PC.
-func (ci *ComputerInfo) nextPC() uint16 {
-	nPC := ci.regs.PC + 1
-	//Check for program counter exceeding memory size.
-	if nPC >= MemorySize {
-		return 0
-	}
-
-	return nPC
+//Adds one increment to the PC in the next tick.
+func (ci *ComputerInfo) addPCinc() {
+	ci.pcIncs += 1
 }
 
 /*

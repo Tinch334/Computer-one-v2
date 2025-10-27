@@ -69,6 +69,15 @@ func breakpointHandler(ctrl *interpreterControl, cfg *interpreterConfig, args []
         	fmt.Printf("Breakpoint not found")
         }
 
+    case BREAKPOINT_DELETE_ALL:
+        if len(args) != 1 {
+            printErrorMsg(BREAKPOINT)
+            return
+        }
+
+        ctrl.ClearBreakpoints()
+        fmt.Printf("All breakpoints successfully deleted")
+
     default:
         printErrorMsg(BREAKPOINT)
     }
